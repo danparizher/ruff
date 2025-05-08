@@ -777,7 +777,7 @@ mod tests {
         let actual = messages
             .iter()
             .filter_map(Message::as_diagnostic_message)
-            .map(AsRule::rule)
+            .map(|msg| msg.rule())
             .collect::<Vec<_>>();
         assert_eq!(actual, expected);
     }

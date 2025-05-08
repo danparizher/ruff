@@ -172,9 +172,9 @@ impl Message {
         )
     }
 
-    pub const fn as_diagnostic_message(&self) -> Option<&DiagnosticMessage> {
+    pub fn as_diagnostic_message(&self) -> Option<DiagnosticMessage> {
         match self {
-            Message::Diagnostic(m) => Some(m),
+            Message::Diagnostic(m) => Some(m.clone()),
             Message::SyntaxError(_) => None,
             Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }

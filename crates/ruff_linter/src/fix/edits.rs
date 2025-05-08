@@ -756,7 +756,7 @@ x = 1 \
                 noqa_offset: TextSize::default(),
             }
         };
-        assert_eq!(apply_fixes([diag].iter(), &locator).code, expect);
+        assert_eq!(apply_fixes([diag].into_iter(), &locator).code, expect);
         Ok(())
     }
 }

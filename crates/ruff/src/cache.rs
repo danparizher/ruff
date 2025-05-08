@@ -437,8 +437,8 @@ impl LintCacheData {
 
         let messages = messages
             .iter()
-            .filter_map(|message| message.as_diagnostic_message())
-            .map(|msg| -> CacheMessage {
+            .filter_map(Message::as_diagnostic_message)
+            .map(|msg| {
                 // Make sure that all message use the same source file.
                 assert_eq!(
                     msg.file,
