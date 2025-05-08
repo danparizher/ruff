@@ -16,8 +16,8 @@ use ruff_text_size::{Ranged, TextLen, TextRange, TextSize};
 
 use crate::codes::NoqaCode;
 use crate::fs::relativize_path;
-use crate::message::Message;
-use crate::registry::{AsRule, Rule, RuleSet};
+use crate::message::{DiagnosticMessage, Message};
+use crate::registry::{Rule, RuleSet};
 use crate::rule_redirects::get_redirect_target;
 use crate::Locator;
 
@@ -842,7 +842,7 @@ fn find_noqa_comments<'a>(
 
     // Mark any non-ignored diagnostics.
     for message in messages {
-        let Message::Diagnostic(diagnostic) = message else {
+        let Message::NewDiagnostic(DiagnosticMessage { rule, parent, .. }) = message else {
             comments_by_line.push(None);
             continue;
         };
@@ -855,7 +855,7 @@ fn find_noqa_comments<'a>(
             }
             FileExemption::Codes(codes) => {
                 // If the diagnostic is ignored by a global exemption, don't add a noqa directive.
-                if codes.contains(&&diagnostic.rule().noqa_code()) {
+                if codes.contains(&&rule.noqa_code()) {
                     comments_by_line.push(None);
                     continue;
                 }
@@ -863,9 +863,9 @@ fn find_noqa_comments<'a>(
         }
 
         // Is the violation ignored by a `noqa` directive on the parent line?
-        if let Some(parent) = diagnostic.parent {
+        if let Some(parent) = parent {
             if let Some(directive_line) =
-                directives.find_line_with_directive(noqa_line_for.resolve(parent))
+                directives.find_line_with_directive(noqa_line_for.resolve(*parent))
             {
                 match &directive_line.directive {
                     Directive::All(_) => {
@@ -873,7 +873,7 @@ fn find_noqa_comments<'a>(
                         continue;
                     }
                     Directive::Codes(codes) => {
-                        if codes.includes(diagnostic.rule()) {
+                        if codes.includes(*rule) {
                             comments_by_line.push(None);
                             continue;
                         }
@@ -882,9 +882,7 @@ fn find_noqa_comments<'a>(
             }
         }
 
-        let noqa_offset = noqa_line_for.resolve(diagnostic.range.start());
-
-        let rule = diagnostic.rule();
+        let noqa_offset = noqa_line_for.resolve(message.range().start());
 
         // Or ignored by the directive itself?
         if let Some(directive_line) = directives.find_line_with_directive(noqa_offset) {
@@ -894,10 +892,10 @@ fn find_noqa_comments<'a>(
                     continue;
                 }
                 directive @ Directive::Codes(codes) => {
-                    if !codes.includes(rule) {
+                    if !codes.includes(*rule) {
                         comments_by_line.push(Some(NoqaComment {
                             line: directive_line.start(),
-                            rule,
+                            rule: *rule,
                             directive: Some(directive),
                         }));
                     }
@@ -909,7 +907,7 @@ fn find_noqa_comments<'a>(
         // There's no existing noqa directive that suppresses the diagnostic.
         comments_by_line.push(Some(NoqaComment {
             line: locator.line_start(noqa_offset),
-            rule,
+            rule: *rule,
             directive: None,
         }));
     }

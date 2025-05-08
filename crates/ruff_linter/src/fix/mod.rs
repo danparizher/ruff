@@ -8,7 +8,7 @@ use ruff_text_size::{Ranged, TextLen, TextRange, TextSize};
 
 use crate::linter::FixTable;
 use crate::message::{DiagnosticMessage, Message};
-use crate::registry::{AsRule, Rule};
+use crate::registry::Rule;
 use crate::settings::types::UnsafeFixes;
 use crate::Locator;
 
@@ -53,18 +53,18 @@ pub(crate) fn fix_file(
 
 /// Apply a series of fixes.
 fn apply_fixes<'a>(
-    diagnostics: impl Iterator<Item = DiagnosticMessage>,
+    diagnostics: impl Iterator<Item = &'a DiagnosticMessage>,
     locator: &'a Locator<'a>,
 ) -> FixResult {
     let mut output = String::with_capacity(locator.len());
     let mut last_pos: Option<TextSize> = None;
-    let mut applied: BTreeSet<Edit> = BTreeSet::default();
+    let mut applied: BTreeSet<&Edit> = BTreeSet::default();
     let mut isolated: FxHashSet<u32> = FxHashSet::default();
     let mut fixed = FxHashMap::default();
     let mut source_map = SourceMap::default();
 
     for (rule, fix) in diagnostics
-        .filter_map(|diagnostic| diagnostic.fix.clone().map(|fix| (diagnostic.rule(), fix)))
+        .filter_map(|diagnostic| diagnostic.fix.as_ref().map(|fix| (diagnostic.rule, fix)))
         .sorted_by(|(rule1, fix1), (rule2, fix2)| cmp_fix(*rule1, *rule2, fix1, fix2))
     {
         let mut edits = fix
@@ -109,7 +109,7 @@ fn apply_fixes<'a>(
             applied_edits.push(edit);
         }
 
-        applied.extend(applied_edits.drain(..).cloned());
+        applied.extend(applied_edits.drain(..));
         *fixed.entry(rule).or_default() += 1;
     }
 
@@ -163,7 +163,7 @@ mod tests {
     use ruff_text_size::{Ranged, TextSize};
 
     use crate::fix::{apply_fixes, FixResult};
-    use crate::message::DiagnosticMessage;
+    use crate::message::{DiagnosticMessage, Message};
     use crate::rules::pycodestyle::rules::MissingNewlineAtEndOfFile;
     use crate::Locator;
 
@@ -176,16 +176,16 @@ mod tests {
             .map(|edit| {
                 // The choice of rule here is arbitrary.
                 let kind = DiagnosticKind::from(MissingNewlineAtEndOfFile);
-                DiagnosticMessage {
-                    name: kind.name,
-                    body: kind.body,
-                    suggestion: kind.suggestion,
-                    range: edit.range(),
-                    fix: Some(Fix::safe_edit(edit)),
-                    parent: None,
-                    file: SourceFileBuilder::new(filename, source).finish(),
-                    noqa_offset: None,
-                }
+                Message::from_diagnostic_kind(
+                    kind,
+                    edit.range(),
+                    Some(Fix::safe_edit(edit)),
+                    None,
+                    SourceFileBuilder::new(filename, source).finish(),
+                    None,
+                )
+                .into_diagnostic_message()
+                .unwrap()
             })
             .collect()
     }
@@ -198,7 +198,7 @@ mod tests {
             code,
             fixes,
             source_map,
-        } = apply_fixes(diagnostics.into_iter(), &locator);
+        } = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(code, "");
         assert_eq!(fixes.values().sum::<usize>(), 0);
         assert!(source_map.markers().is_empty());
@@ -226,7 +226,7 @@ print("hello world")
             code,
             fixes,
             source_map,
-        } = apply_fixes(diagnostics.into_iter(), &locator);
+        } = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
             code,
             r#"
@@ -269,7 +269,7 @@ class A(object):
             code,
             fixes,
             source_map,
-        } = apply_fixes(diagnostics.into_iter(), &locator);
+        } = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
             code,
             r"
@@ -306,7 +306,7 @@ class A(object):
             code,
             fixes,
             source_map,
-        } = apply_fixes(diagnostics.into_iter(), &locator);
+        } = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
             code,
             r"
@@ -346,7 +346,7 @@ class A(object, object, object):
             code,
             fixes,
             source_map,
-        } = apply_fixes(diagnostics.into_iter(), &locator);
+        } = apply_fixes(diagnostics.iter(), &locator);
 
         assert_eq!(
             code,
@@ -389,7 +389,7 @@ class A(object):
             code,
             fixes,
             source_map,
-        } = apply_fixes(diagnostics.into_iter(), &locator);
+        } = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
             code,
             r"

@@ -25,7 +25,6 @@ use crate::linter::check_path;
 use crate::message::{Emitter, EmitterContext, Message, TextEmitter};
 use crate::package::PackageRoot;
 use crate::packaging::detect_package_root;
-use crate::registry::AsRule;
 use crate::settings::types::UnsafeFixes;
 use crate::settings::{flags, LinterSettings};
 use crate::source_kind::SourceKind;
@@ -235,7 +234,7 @@ Source with applied fixes:
         .into_iter()
         .filter_map(Message::into_diagnostic_message)
         .map(|mut diagnostic| {
-            let rule = diagnostic.rule();
+            let rule = diagnostic.rule;
             let fixable = diagnostic.fix.as_ref().is_some_and(|fix| {
                 matches!(
                     fix.applicability(),
@@ -276,10 +275,10 @@ Either ensure you always emit a fix or change `Violation::FIX_AVAILABILITY` to e
 
             // Not strictly necessary but adds some coverage for this code path
             diagnostic.noqa_offset =
-                Some(directives.noqa_line_for.resolve(diagnostic.range.start()));
-            diagnostic.file = source_code.clone();
+                Some(directives.noqa_line_for.resolve(diagnostic.range().start()));
+            diagnostic.set_file(source_code.clone());
 
-            Message::Diagnostic(diagnostic)
+            Message::NewDiagnostic(diagnostic)
         })
         .chain(parsed.errors().iter().map(|parse_error| {
             Message::from_parse_error(parse_error, &locator, source_code.clone())

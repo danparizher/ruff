@@ -17,7 +17,6 @@ use ruff_linter::{
     message::{DiagnosticMessage, Message},
     package::PackageRoot,
     packaging::detect_package_root,
-    registry::AsRule,
     settings::flags,
     source_kind::SourceKind,
     Locator,
@@ -167,7 +166,7 @@ pub(crate) fn check(
             .into_iter()
             .zip(noqa_edits)
             .filter_map(|(message, noqa_edit)| match message {
-                Message::Diagnostic(diagnostic_message) => Some(to_lsp_diagnostic(
+                Message::NewDiagnostic(diagnostic_message) => Some(to_lsp_diagnostic(
                     diagnostic_message,
                     noqa_edit,
                     &source_kind,
@@ -186,7 +185,6 @@ pub(crate) fn check(
                         None
                     }
                 }
-                Message::NewDiagnostic { diagnostic: _, .. } => todo!(),
             });
 
     if let Some(notebook) = query.as_notebook() {
@@ -247,14 +245,12 @@ fn to_lsp_diagnostic(
     index: &LineIndex,
     encoding: PositionEncoding,
 ) -> (usize, lsp_types::Diagnostic) {
-    let rule = diagnostic.rule();
+    let rule = diagnostic.rule;
+    let diagnostic_range = diagnostic.range();
+    let name = diagnostic.name().to_string();
+    let body = diagnostic.body().to_string();
     let DiagnosticMessage {
-        range: diagnostic_range,
-        fix,
-        name,
-        suggestion,
-        body,
-        ..
+        fix, suggestion, ..
     } = diagnostic;
 
     let fix = fix.and_then(|fix| fix.applies(Applicability::Unsafe).then_some(fix));
@@ -276,7 +272,7 @@ fn to_lsp_diagnostic(
             });
 
             serde_json::to_value(AssociatedDiagnosticData {
-                title: suggestion.unwrap_or(name),
+                title: suggestion.unwrap_or_else(|| name.to_string()),
                 noqa_edit,
                 edits,
                 code: rule.noqa_code().to_string(),

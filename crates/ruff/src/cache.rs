@@ -439,17 +439,17 @@ impl LintCacheData {
             .map(|msg| {
                 // Make sure that all message use the same source file.
                 assert_eq!(
-                    msg.file,
+                    msg.file(),
                     messages.first().unwrap().source_file(),
                     "message uses a different source file"
                 );
                 CacheMessage {
                     kind: DiagnosticKind {
-                        name: msg.name.clone(),
-                        body: msg.body.clone(),
+                        name: msg.name().to_string(),
+                        body: msg.body().to_string(),
                         suggestion: msg.suggestion.clone(),
                     },
-                    range: msg.range,
+                    range: msg.range(),
                     parent: msg.parent,
                     fix: msg.fix.clone(),
                     noqa_offset: msg.noqa_offset,

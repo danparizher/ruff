@@ -11,7 +11,6 @@ use ruff_formatter::{FormatResult, Formatted, IndentStyle};
 use ruff_linter::directives;
 use ruff_linter::line_width::{IndentWidth, LineLength};
 use ruff_linter::linter::check_path;
-use ruff_linter::registry::AsRule;
 use ruff_linter::settings::{flags, DEFAULT_SELECTORS, DUMMY_VARIABLE_RGX};
 use ruff_linter::source_kind::SourceKind;
 use ruff_linter::Locator;
@@ -209,33 +208,36 @@ impl Workspace {
 
         let messages: Vec<ExpandedMessage> = messages
             .into_iter()
-            .map(|message| match message {
-                Message::Diagnostic(d) => ExpandedMessage {
-                    code: Some(d.rule().noqa_code().to_string()),
-                    message: d.body,
-                    start_location: source_code.line_column(d.range.start()).into(),
-                    end_location: source_code.line_column(d.range.end()).into(),
-                    fix: d.fix.map(|fix| ExpandedFix {
-                        message: d.suggestion,
-                        edits: fix
-                            .edits()
-                            .iter()
-                            .map(|edit| ExpandedEdit {
-                                location: source_code.line_column(edit.start()).into(),
-                                end_location: source_code.line_column(edit.end()).into(),
-                                content: edit.content().map(ToString::to_string),
-                            })
-                            .collect(),
-                    }),
-                },
-                Message::SyntaxError(_) => ExpandedMessage {
-                    code: None,
-                    message: message.body().to_string(),
-                    start_location: source_code.line_column(message.range().start()).into(),
-                    end_location: source_code.line_column(message.range().end()).into(),
-                    fix: None,
-                },
-                Message::NewDiagnostic { diagnostic: _, .. } => todo!(),
+            .map(|msg| {
+                let message = msg.body().to_string();
+                let range = msg.range();
+                match msg {
+                    Message::NewDiagnostic(d) => ExpandedMessage {
+                        code: Some(d.rule.noqa_code().to_string()),
+                        message,
+                        start_location: source_code.line_column(range.start()).into(),
+                        end_location: source_code.line_column(range.end()).into(),
+                        fix: d.fix.map(|fix| ExpandedFix {
+                            message: d.suggestion,
+                            edits: fix
+                                .edits()
+                                .iter()
+                                .map(|edit| ExpandedEdit {
+                                    location: source_code.line_column(edit.start()).into(),
+                                    end_location: source_code.line_column(edit.end()).into(),
+                                    content: edit.content().map(ToString::to_string),
+                                })
+                                .collect(),
+                        }),
+                    },
+                    Message::SyntaxError(_) => ExpandedMessage {
+                        code: None,
+                        message,
+                        start_location: source_code.line_column(range.start()).into(),
+                        end_location: source_code.line_column(range.end()).into(),
+                        fix: None,
+                    },
+                }
             })
             .collect();
 

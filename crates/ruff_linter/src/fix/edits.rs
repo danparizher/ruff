@@ -605,7 +605,7 @@ mod tests {
     use crate::fix::edits::{
         add_to_dunder_all, make_redundant_alias, next_stmt_break, trailing_semicolon,
     };
-    use crate::message::DiagnosticMessage;
+    use crate::message::Message;
     use crate::Locator;
 
     /// Parse the given source using [`Mode::Module`] and return the first statement.
@@ -745,18 +745,15 @@ x = 1 \
                 iter.next().ok_or(anyhow!("expected edits nonempty"))?,
                 iter,
             ));
-            DiagnosticMessage {
-                name: diag.kind.name,
-                body: diag.kind.body,
-                suggestion: diag.kind.suggestion,
-                range: diag.range,
-                fix: diag.fix,
-                parent: diag.parent,
-                file: SourceFileBuilder::new("<filename>", "<code>").finish(),
-                noqa_offset: None,
-            }
+            Message::from_diagnostic(
+                diag,
+                SourceFileBuilder::new("<filename>", "<code>").finish(),
+                None,
+            )
+            .into_diagnostic_message()
+            .unwrap()
         };
-        assert_eq!(apply_fixes([diag].into_iter(), &locator).code, expect);
+        assert_eq!(apply_fixes([diag].iter(), &locator).code, expect);
         Ok(())
     }
 }
