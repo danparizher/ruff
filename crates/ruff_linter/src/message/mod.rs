@@ -47,6 +47,7 @@ mod text;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Message {
     Diagnostic(DiagnosticMessage),
+    NewDiagnostic { diagnostic: db::Diagnostic },
     SyntaxError(db::Diagnostic),
 }
 
@@ -175,6 +176,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m),
             Message::SyntaxError(_) => None,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -182,6 +184,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m),
             Message::SyntaxError(_) => None,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -195,6 +198,7 @@ impl Message {
         match self {
             Message::Diagnostic(_) => false,
             Message::SyntaxError(diag) => diag.id().is_invalid_syntax(),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -203,6 +207,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => MessageKind::Diagnostic(m.rule()),
             Message::SyntaxError(_) => MessageKind::SyntaxError,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -211,6 +216,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => &m.name,
             Message::SyntaxError(_) => "SyntaxError",
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -223,6 +229,7 @@ impl Message {
                 .expect("Expected a primary annotation for a ruff diagnostic")
                 .get_message()
                 .expect("Expected a message for a ruff diagnostic"),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -231,6 +238,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => m.suggestion.as_deref(),
             Message::SyntaxError(_) => None,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -239,6 +247,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m.noqa_offset),
             Message::SyntaxError(_) => None,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -247,6 +256,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => m.fix.as_ref(),
             Message::SyntaxError(_) => None,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -260,6 +270,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m.rule()),
             Message::SyntaxError(_) => None,
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -273,6 +284,7 @@ impl Message {
                     .name()
                     .to_string(),
             ),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -285,6 +297,7 @@ impl Message {
                 .expect_ruff_file()
                 .to_source_code()
                 .line_column(self.start()),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -297,6 +310,7 @@ impl Message {
                 .expect_ruff_file()
                 .to_source_code()
                 .line_column(self.end()),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -305,6 +319,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => m.file.clone(),
             Message::SyntaxError(m) => m.expect_primary_span().expect_ruff_file().clone(),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 }
@@ -329,6 +344,7 @@ impl Ranged for Message {
                 .expect_primary_span()
                 .range()
                 .expect("Expected range for ruff span"),
+            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 }

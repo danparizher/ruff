@@ -235,6 +235,7 @@ impl Workspace {
                     end_location: source_code.line_column(message.range().end()).into(),
                     fix: None,
                 },
+                Message::NewDiagnostic { diagnostic: _ } => todo!(),
             })
             .collect();
 
