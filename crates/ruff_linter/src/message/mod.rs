@@ -88,7 +88,7 @@ impl DiagnosticMessage {
             .clone()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, fuzzing))]
     pub(crate) fn set_file(&mut self, file: SourceFile) {
         let mut diagnostic =
             db::Diagnostic::new(DiagnosticId::InvalidSyntax, Severity::Error, self.name());
