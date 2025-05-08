@@ -9,7 +9,7 @@ use crate::{
     session::DocumentQuery,
     PositionEncoding, DIAGNOSTIC_NAME,
 };
-use ruff_diagnostics::{Applicability, DiagnosticKind, Edit, Fix};
+use ruff_diagnostics::{Applicability, Edit, Fix};
 use ruff_linter::{
     directives::{extract_directives, Flags},
     generate_noqa_edits,
@@ -32,7 +32,8 @@ use ruff_text_size::{Ranged, TextRange};
 /// This is serialized on the diagnostic `data` field.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct AssociatedDiagnosticData {
-    pub(crate) kind: DiagnosticKind,
+    /// The message describing what the fix does, if it exists, or the diagnostic name otherwise.
+    pub(crate) title: String,
     /// Edits to fix the diagnostic. If this is empty, a fix
     /// does not exist.
     pub(crate) edits: Vec<lsp_types::TextEdit>,
@@ -227,10 +228,7 @@ pub(crate) fn fixes_for_diagnostics(
             Ok(Some(DiagnosticFix {
                 fixed_diagnostic,
                 code: associated_data.code,
-                title: associated_data
-                    .kind
-                    .suggestion
-                    .unwrap_or(associated_data.kind.name),
+                title: associated_data.title,
                 noqa_edit: associated_data.noqa_edit,
                 edits: associated_data.edits,
             }))
@@ -274,8 +272,9 @@ fn to_lsp_diagnostic(
                 range: diagnostic_edit_range(noqa_edit.range(), source_kind, index, encoding),
                 new_text: noqa_edit.into_content().unwrap_or_default().into_string(),
             });
+
             serde_json::to_value(AssociatedDiagnosticData {
-                kind: kind.clone(),
+                title: kind.suggestion.unwrap_or(kind.name),
                 noqa_edit,
                 edits,
                 code: rule.noqa_code().to_string(),
