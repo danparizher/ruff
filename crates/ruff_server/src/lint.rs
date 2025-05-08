@@ -246,14 +246,15 @@ fn to_lsp_diagnostic(
     index: &LineIndex,
     encoding: PositionEncoding,
 ) -> (usize, lsp_types::Diagnostic) {
+    let rule = diagnostic.rule();
     let DiagnosticMessage {
-        kind,
         range: diagnostic_range,
         fix,
+        name,
+        suggestion,
+        body,
         ..
     } = diagnostic;
-
-    let rule = kind.rule();
 
     let fix = fix.and_then(|fix| fix.applies(Applicability::Unsafe).then_some(fix));
 
@@ -274,7 +275,7 @@ fn to_lsp_diagnostic(
             });
 
             serde_json::to_value(AssociatedDiagnosticData {
-                title: kind.suggestion.unwrap_or(kind.name),
+                title: suggestion.unwrap_or(name),
                 noqa_edit,
                 edits,
                 code: rule.noqa_code().to_string(),
@@ -313,7 +314,7 @@ fn to_lsp_diagnostic(
                 })
             }),
             source: Some(DIAGNOSTIC_NAME.into()),
-            message: kind.body,
+            message: body,
             related_information: None,
             data,
         },

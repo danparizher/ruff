@@ -64,12 +64,7 @@ fn apply_fixes<'a>(
     let mut source_map = SourceMap::default();
 
     for (rule, fix) in diagnostics
-        .filter_map(|diagnostic| {
-            diagnostic
-                .fix
-                .as_ref()
-                .map(|fix| (diagnostic.kind.rule(), fix))
-        })
+        .filter_map(|diagnostic| diagnostic.fix.as_ref().map(|fix| (diagnostic.rule(), fix)))
         .sorted_by(|(rule1, fix1), (rule2, fix2)| cmp_fix(*rule1, *rule2, fix1, fix2))
     {
         let mut edits = fix
@@ -163,7 +158,7 @@ fn cmp_fix(rule1: Rule, rule2: Rule, fix1: &Fix, fix2: &Fix) -> std::cmp::Orderi
 
 #[cfg(test)]
 mod tests {
-    use ruff_diagnostics::{Edit, Fix, SourceMarker};
+    use ruff_diagnostics::{DiagnosticKind, Edit, Fix, SourceMarker};
     use ruff_source_file::SourceFileBuilder;
     use ruff_text_size::{Ranged, TextSize};
 
@@ -178,14 +173,19 @@ mod tests {
         edit: impl IntoIterator<Item = Edit>,
     ) -> Vec<DiagnosticMessage> {
         edit.into_iter()
-            .map(|edit| DiagnosticMessage {
+            .map(|edit| {
                 // The choice of rule here is arbitrary.
-                kind: MissingNewlineAtEndOfFile.into(),
-                range: edit.range(),
-                fix: Some(Fix::safe_edit(edit)),
-                parent: None,
-                file: SourceFileBuilder::new(filename, source).finish(),
-                noqa_offset: TextSize::default(),
+                let kind = DiagnosticKind::from(MissingNewlineAtEndOfFile);
+                DiagnosticMessage {
+                    name: kind.name,
+                    body: kind.body,
+                    suggestion: kind.suggestion,
+                    range: edit.range(),
+                    fix: Some(Fix::safe_edit(edit)),
+                    parent: None,
+                    file: SourceFileBuilder::new(filename, source).finish(),
+                    noqa_offset: TextSize::default(),
+                }
             })
             .collect()
     }

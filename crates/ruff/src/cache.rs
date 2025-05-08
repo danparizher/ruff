@@ -348,7 +348,9 @@ impl FileCache {
                     .iter()
                     .map(|msg| {
                         Message::Diagnostic(DiagnosticMessage {
-                            kind: msg.kind.clone(),
+                            name: msg.kind.name.clone(),
+                            body: msg.kind.body.clone(),
+                            suggestion: msg.kind.suggestion.clone(),
                             range: msg.range,
                             fix: msg.fix.clone(),
                             file: file.clone(),
@@ -436,7 +438,7 @@ impl LintCacheData {
         let messages = messages
             .iter()
             .filter_map(|message| message.as_diagnostic_message())
-            .map(|msg| {
+            .map(|msg| -> CacheMessage {
                 // Make sure that all message use the same source file.
                 assert_eq!(
                     msg.file,
@@ -444,7 +446,11 @@ impl LintCacheData {
                     "message uses a different source file"
                 );
                 CacheMessage {
-                    kind: msg.kind.clone(),
+                    kind: DiagnosticKind {
+                        name: msg.name.clone(),
+                        body: msg.body.clone(),
+                        suggestion: msg.suggestion.clone(),
+                    },
                     range: msg.range,
                     parent: msg.parent,
                     fix: msg.fix.clone(),
