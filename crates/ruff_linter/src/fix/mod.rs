@@ -184,7 +184,7 @@ mod tests {
                     fix: Some(Fix::safe_edit(edit)),
                     parent: None,
                     file: SourceFileBuilder::new(filename, source).finish(),
-                    noqa_offset: TextSize::default(),
+                    noqa_offset: None,
                 }
             })
             .collect()

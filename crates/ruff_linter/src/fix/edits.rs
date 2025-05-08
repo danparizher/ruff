@@ -753,7 +753,7 @@ x = 1 \
                 fix: diag.fix,
                 parent: diag.parent,
                 file: SourceFileBuilder::new("<filename>", "<code>").finish(),
-                noqa_offset: TextSize::default(),
+                noqa_offset: None,
             }
         };
         assert_eq!(apply_fixes([diag].into_iter(), &locator).code, expect);

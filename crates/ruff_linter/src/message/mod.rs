@@ -84,7 +84,7 @@ pub struct DiagnosticMessage {
     pub fix: Option<Fix>,
     pub parent: Option<TextSize>,
     pub file: SourceFile,
-    pub noqa_offset: TextSize,
+    pub noqa_offset: Option<TextSize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -120,7 +120,7 @@ impl Message {
         fix: Option<Fix>,
         parent: Option<TextSize>,
         file: SourceFile,
-        noqa_offset: TextSize,
+        noqa_offset: Option<TextSize>,
     ) -> Message {
         let rule = kind.rule();
         let DiagnosticKind {
@@ -128,8 +128,8 @@ impl Message {
             body,
             suggestion,
         } = kind;
-        match (&fix, parent, &suggestion) {
-            (None, None, None) if noqa_offset == TextSize::default() => {
+        match (&fix, parent, &suggestion, noqa_offset) {
+            (None, None, None, None) => {
                 let mut diag =
                     db::Diagnostic::new(DiagnosticId::InvalidSyntax, Severity::Error, name);
                 let span = Span::from(file).with_range(range);
@@ -156,7 +156,7 @@ impl Message {
     pub fn from_diagnostic(
         diagnostic: Diagnostic,
         file: SourceFile,
-        noqa_offset: TextSize,
+        noqa_offset: Option<TextSize>,
     ) -> Message {
         let Diagnostic {
             kind,
@@ -225,7 +225,7 @@ impl Message {
                 body: self.body().to_string(),
                 range: self.range(),
                 file: m.expect_primary_span().expect_ruff_file().clone(),
-                noqa_offset: TextSize::default(),
+                noqa_offset: None,
                 fix: None,
                 suggestion: None,
                 parent: None,
@@ -244,7 +244,7 @@ impl Message {
                 body: self.body().to_string(),
                 range: self.range(),
                 file: m.expect_primary_span().expect_ruff_file().clone(),
-                noqa_offset: TextSize::default(),
+                noqa_offset: None,
                 fix: None,
                 suggestion: None,
                 parent: None,
@@ -308,7 +308,7 @@ impl Message {
     /// Returns the offset at which the `noqa` comment will be placed if it's a diagnostic message.
     pub fn noqa_offset(&self) -> Option<TextSize> {
         match self {
-            Message::Diagnostic(m) => Some(m.noqa_offset),
+            Message::Diagnostic(m) => m.noqa_offset,
             Message::SyntaxError(_) => None,
             Message::NewDiagnostic { .. } => None,
         }
@@ -569,9 +569,9 @@ def fibonacci(n):
         let unused_variable_start = unused_variable.start();
         let undefined_name_start = undefined_name.start();
         vec![
-            Message::from_diagnostic(unused_import, fib_source.clone(), unused_import_start),
-            Message::from_diagnostic(unused_variable, fib_source, unused_variable_start),
-            Message::from_diagnostic(undefined_name, file_2_source, undefined_name_start),
+            Message::from_diagnostic(unused_import, fib_source.clone(), Some(unused_import_start)),
+            Message::from_diagnostic(unused_variable, fib_source, Some(unused_variable_start)),
+            Message::from_diagnostic(undefined_name, file_2_source, Some(undefined_name_start)),
         ]
     }
 
@@ -669,14 +669,18 @@ def foo():
                 Message::from_diagnostic(
                     unused_import_os,
                     notebook_source.clone(),
-                    unused_import_os_start,
+                    Some(unused_import_os_start),
                 ),
                 Message::from_diagnostic(
                     unused_import_math,
                     notebook_source.clone(),
-                    unused_import_math_start,
+                    Some(unused_import_math_start),
                 ),
-                Message::from_diagnostic(unused_variable, notebook_source, unused_variable_start),
+                Message::from_diagnostic(
+                    unused_variable,
+                    notebook_source,
+                    Some(unused_variable_start),
+                ),
             ],
             notebook_indexes,
         )

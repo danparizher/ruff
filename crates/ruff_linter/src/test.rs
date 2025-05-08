@@ -275,7 +275,8 @@ Either ensure you always emit a fix or change `Violation::FIX_AVAILABILITY` to e
             );
 
             // Not strictly necessary but adds some coverage for this code path
-            diagnostic.noqa_offset = directives.noqa_line_for.resolve(diagnostic.range.start());
+            diagnostic.noqa_offset =
+                Some(directives.noqa_line_for.resolve(diagnostic.range.start()));
             diagnostic.file = source_code.clone();
 
             Message::Diagnostic(diagnostic)

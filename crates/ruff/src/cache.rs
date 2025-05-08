@@ -473,7 +473,7 @@ pub(super) struct CacheMessage {
     range: TextRange,
     parent: Option<TextSize>,
     fix: Option<Fix>,
-    noqa_offset: TextSize,
+    noqa_offset: Option<TextSize>,
 }
 
 pub(crate) trait PackageCaches {
