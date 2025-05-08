@@ -47,7 +47,27 @@ mod text;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Message {
     Diagnostic(DiagnosticMessage),
-    NewDiagnostic { diagnostic: db::Diagnostic },
+    /// This represents an intermediate step toward replacing `DiagnosticMessage` with
+    /// `db::Diagnostic`. There are a few limitations here:
+    ///
+    /// - `db::Diagnostic` doesn't have support for fixes yet
+    /// - `db::Diagnostic` doesn't have a `parent`, `noqa_offset`, or `suggestion` field
+    /// - `DiagnosticId` expects to have a `&'static str` for a `LintName`
+    ///
+    /// Our solution for the first two of these is to continue using `Message::Diagnostic` for any
+    /// `Diagnostic` that has these optional fields set (`noqa_offset` isn't strictly optional, but
+    /// many callers pass a `TextSize::default` so we effectively consider that to be `None`).
+    ///
+    /// The solution for the third point is instead to store the rule name as the `db::Diagnostic`'s
+    /// primary message. This makes it easy to retrieve as a `&str` in the `Message::name` method
+    /// below, although it's clearly a (temporary!) hack.
+    ///
+    /// We also need access to the actual `Rule`, which we obviously handle by storing it directly
+    /// in the variant.
+    NewDiagnostic {
+        diagnostic: db::Diagnostic,
+        rule: Rule,
+    },
     SyntaxError(db::Diagnostic),
 }
 
@@ -94,6 +114,44 @@ impl Message {
         Self::SyntaxError(diag)
     }
 
+    pub fn from_diagnostic_kind(
+        kind: DiagnosticKind,
+        range: TextRange,
+        fix: Option<Fix>,
+        parent: Option<TextSize>,
+        file: SourceFile,
+        noqa_offset: TextSize,
+    ) -> Message {
+        let rule = kind.rule();
+        let DiagnosticKind {
+            name,
+            body,
+            suggestion,
+        } = kind;
+        match (&fix, parent, &suggestion) {
+            (None, None, None) if noqa_offset == TextSize::default() => {
+                let mut diag =
+                    db::Diagnostic::new(DiagnosticId::InvalidSyntax, Severity::Error, name);
+                let span = Span::from(file).with_range(range);
+                diag.annotate(Annotation::primary(span).message(body));
+                Message::NewDiagnostic {
+                    diagnostic: diag,
+                    rule,
+                }
+            }
+            _ => Message::Diagnostic(DiagnosticMessage {
+                name,
+                body,
+                suggestion,
+                range,
+                fix,
+                parent,
+                file,
+                noqa_offset,
+            }),
+        }
+    }
+
     /// Create a [`Message`] from the given [`Diagnostic`] corresponding to a rule violation.
     pub fn from_diagnostic(
         diagnostic: Diagnostic,
@@ -101,26 +159,12 @@ impl Message {
         noqa_offset: TextSize,
     ) -> Message {
         let Diagnostic {
-            kind:
-                DiagnosticKind {
-                    name,
-                    body,
-                    suggestion,
-                },
+            kind,
             range,
             fix,
             parent,
         } = diagnostic;
-        Message::Diagnostic(DiagnosticMessage {
-            name,
-            body,
-            suggestion,
-            range,
-            fix,
-            parent,
-            file,
-            noqa_offset,
-        })
+        Self::from_diagnostic_kind(kind, range, fix, parent, file, noqa_offset)
     }
 
     /// Create a [`Message`] from the given [`ParseError`].
@@ -176,7 +220,16 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m.clone()),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { diagnostic: m, .. } => Some(DiagnosticMessage {
+                name: self.name().to_string(),
+                body: self.body().to_string(),
+                range: self.range(),
+                file: m.expect_primary_span().expect_ruff_file().clone(),
+                noqa_offset: TextSize::default(),
+                fix: None,
+                suggestion: None,
+                parent: None,
+            }),
         }
     }
 
@@ -184,7 +237,18 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic {
+                diagnostic: ref m, ..
+            } => Some(DiagnosticMessage {
+                name: self.name().to_string(),
+                body: self.body().to_string(),
+                range: self.range(),
+                file: m.expect_primary_span().expect_ruff_file().clone(),
+                noqa_offset: TextSize::default(),
+                fix: None,
+                suggestion: None,
+                parent: None,
+            }),
         }
     }
 
@@ -198,7 +262,7 @@ impl Message {
         match self {
             Message::Diagnostic(_) => false,
             Message::SyntaxError(diag) => diag.id().is_invalid_syntax(),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { .. } => false,
         }
     }
 
@@ -207,7 +271,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => MessageKind::Diagnostic(m.rule()),
             Message::SyntaxError(_) => MessageKind::SyntaxError,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { .. } => todo!(),
         }
     }
 
@@ -216,7 +280,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => &m.name,
             Message::SyntaxError(_) => "SyntaxError",
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { diagnostic, .. } => diagnostic.primary_message(),
         }
     }
 
@@ -224,7 +288,7 @@ impl Message {
     pub fn body(&self) -> &str {
         match self {
             Message::Diagnostic(m) => &m.body,
-            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m } => m
+            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m, .. } => m
                 .primary_annotation()
                 .expect("Expected a primary annotation for a ruff diagnostic")
                 .get_message()
@@ -237,7 +301,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => m.suggestion.as_deref(),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { .. } => None,
         }
     }
 
@@ -246,7 +310,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => Some(m.noqa_offset),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { .. } => None,
         }
     }
 
@@ -255,7 +319,7 @@ impl Message {
         match self {
             Message::Diagnostic(m) => m.fix.as_ref(),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::NewDiagnostic { .. } => None,
         }
     }
 
@@ -268,8 +332,8 @@ impl Message {
     pub fn rule(&self) -> Option<Rule> {
         match self {
             Message::Diagnostic(m) => Some(m.rule()),
+            Message::NewDiagnostic { rule, .. } => Some(*rule),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -277,7 +341,10 @@ impl Message {
     pub fn filename(&self) -> Cow<'_, str> {
         match self {
             Message::Diagnostic(m) => Cow::Borrowed(m.file.name()),
-            Message::SyntaxError(diag) | Message::NewDiagnostic { diagnostic: diag } => Cow::Owned(
+            Message::SyntaxError(diag)
+            | Message::NewDiagnostic {
+                diagnostic: diag, ..
+            } => Cow::Owned(
                 diag.expect_primary_span()
                     .expect_ruff_file()
                     .name()
@@ -290,7 +357,10 @@ impl Message {
     pub fn compute_start_location(&self) -> LineColumn {
         match self {
             Message::Diagnostic(m) => m.file.to_source_code().line_column(m.range.start()),
-            Message::SyntaxError(diag) | Message::NewDiagnostic { diagnostic: diag } => diag
+            Message::SyntaxError(diag)
+            | Message::NewDiagnostic {
+                diagnostic: diag, ..
+            } => diag
                 .expect_primary_span()
                 .expect_ruff_file()
                 .to_source_code()
@@ -302,7 +372,10 @@ impl Message {
     pub fn compute_end_location(&self) -> LineColumn {
         match self {
             Message::Diagnostic(m) => m.file.to_source_code().line_column(m.range.end()),
-            Message::SyntaxError(diag) | Message::NewDiagnostic { diagnostic: diag } => diag
+            Message::SyntaxError(diag)
+            | Message::NewDiagnostic {
+                diagnostic: diag, ..
+            } => diag
                 .expect_primary_span()
                 .expect_ruff_file()
                 .to_source_code()
@@ -314,7 +387,7 @@ impl Message {
     pub fn source_file(&self) -> SourceFile {
         match self {
             Message::Diagnostic(m) => m.file.clone(),
-            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m } => {
+            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m, .. } => {
                 m.expect_primary_span().expect_ruff_file().clone()
             }
         }
@@ -337,7 +410,7 @@ impl Ranged for Message {
     fn range(&self) -> TextRange {
         match self {
             Message::Diagnostic(m) => m.range,
-            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m } => m
+            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m, .. } => m
                 .expect_primary_span()
                 .range()
                 .expect("Expected range for ruff span"),

@@ -186,7 +186,7 @@ pub(crate) fn check(
                         None
                     }
                 }
-                Message::NewDiagnostic { diagnostic: _ } => todo!(),
+                Message::NewDiagnostic { diagnostic: _, .. } => todo!(),
             });
 
     if let Some(notebook) = query.as_notebook() {

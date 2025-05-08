@@ -19,7 +19,7 @@ use tempfile::NamedTempFile;
 
 use ruff_cache::{CacheKey, CacheKeyHasher};
 use ruff_diagnostics::{DiagnosticKind, Fix};
-use ruff_linter::message::{DiagnosticMessage, Message};
+use ruff_linter::message::Message;
 use ruff_linter::package::PackageRoot;
 use ruff_linter::{warn_user, VERSION};
 use ruff_macros::CacheKey;
@@ -347,16 +347,14 @@ impl FileCache {
                 lint.messages
                     .iter()
                     .map(|msg| {
-                        Message::Diagnostic(DiagnosticMessage {
-                            name: msg.kind.name.clone(),
-                            body: msg.kind.body.clone(),
-                            suggestion: msg.kind.suggestion.clone(),
-                            range: msg.range,
-                            fix: msg.fix.clone(),
-                            file: file.clone(),
-                            noqa_offset: msg.noqa_offset,
-                            parent: msg.parent,
-                        })
+                        Message::from_diagnostic_kind(
+                            msg.kind.clone(),
+                            msg.range,
+                            msg.fix.clone(),
+                            msg.parent,
+                            file.clone(),
+                            msg.noqa_offset,
+                        )
                     })
                     .collect()
             };
