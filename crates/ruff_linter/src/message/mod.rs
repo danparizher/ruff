@@ -224,12 +224,11 @@ impl Message {
     pub fn body(&self) -> &str {
         match self {
             Message::Diagnostic(m) => &m.body,
-            Message::SyntaxError(m) => m
+            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m } => m
                 .primary_annotation()
                 .expect("Expected a primary annotation for a ruff diagnostic")
                 .get_message()
                 .expect("Expected a message for a ruff diagnostic"),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -278,13 +277,12 @@ impl Message {
     pub fn filename(&self) -> Cow<'_, str> {
         match self {
             Message::Diagnostic(m) => Cow::Borrowed(m.file.name()),
-            Message::SyntaxError(diag) => Cow::Owned(
+            Message::SyntaxError(diag) | Message::NewDiagnostic { diagnostic: diag } => Cow::Owned(
                 diag.expect_primary_span()
                     .expect_ruff_file()
                     .name()
                     .to_string(),
             ),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -292,12 +290,11 @@ impl Message {
     pub fn compute_start_location(&self) -> LineColumn {
         match self {
             Message::Diagnostic(m) => m.file.to_source_code().line_column(m.range.start()),
-            Message::SyntaxError(diag) => diag
+            Message::SyntaxError(diag) | Message::NewDiagnostic { diagnostic: diag } => diag
                 .expect_primary_span()
                 .expect_ruff_file()
                 .to_source_code()
                 .line_column(self.start()),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -305,12 +302,11 @@ impl Message {
     pub fn compute_end_location(&self) -> LineColumn {
         match self {
             Message::Diagnostic(m) => m.file.to_source_code().line_column(m.range.end()),
-            Message::SyntaxError(diag) => diag
+            Message::SyntaxError(diag) | Message::NewDiagnostic { diagnostic: diag } => diag
                 .expect_primary_span()
                 .expect_ruff_file()
                 .to_source_code()
                 .line_column(self.end()),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 
@@ -318,8 +314,9 @@ impl Message {
     pub fn source_file(&self) -> SourceFile {
         match self {
             Message::Diagnostic(m) => m.file.clone(),
-            Message::SyntaxError(m) => m.expect_primary_span().expect_ruff_file().clone(),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
+            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m } => {
+                m.expect_primary_span().expect_ruff_file().clone()
+            }
         }
     }
 }
@@ -340,11 +337,10 @@ impl Ranged for Message {
     fn range(&self) -> TextRange {
         match self {
             Message::Diagnostic(m) => m.range,
-            Message::SyntaxError(m) => m
+            Message::SyntaxError(m) | Message::NewDiagnostic { diagnostic: m } => m
                 .expect_primary_span()
                 .range()
                 .expect("Expected range for ruff span"),
-            Message::NewDiagnostic { diagnostic: _ } => todo!(),
         }
     }
 }
