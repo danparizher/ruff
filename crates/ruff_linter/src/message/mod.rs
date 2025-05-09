@@ -69,6 +69,9 @@ impl DiagnosticMessage {
             .expect("Expected range for ruff span")
     }
 
+    // TODO this is not quite right, we're smuggling the name in via the primary message when it
+    // should really be the DiagnosticId::Lint. Speaking of that, we're also still passing
+    // InvalidSyntax as the DiagnosticId down below, which is not right either
     pub fn name(&self) -> &str {
         self.diagnostic.primary_message()
     }
@@ -88,6 +91,9 @@ impl DiagnosticMessage {
             .clone()
     }
 
+    // TODO I really want to get rid of this before opening this for review. really I'd like to get
+    // rid of all of these methods. I need to see if I can avoid calling as_diagnostic_message,
+    // which is how we end up in these
     #[cfg(any(test, fuzzing))]
     pub(crate) fn set_file(&mut self, file: SourceFile) {
         let mut diagnostic =
