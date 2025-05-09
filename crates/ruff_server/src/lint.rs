@@ -166,7 +166,7 @@ pub(crate) fn check(
             .into_iter()
             .zip(noqa_edits)
             .filter_map(|(message, noqa_edit)| match message {
-                Message::NewDiagnostic(diagnostic_message) => Some(to_lsp_diagnostic(
+                Message::Diagnostic(diagnostic_message) => Some(to_lsp_diagnostic(
                     diagnostic_message,
                     noqa_edit,
                     &source_kind,

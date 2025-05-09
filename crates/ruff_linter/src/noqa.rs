@@ -842,7 +842,7 @@ fn find_noqa_comments<'a>(
 
     // Mark any non-ignored diagnostics.
     for message in messages {
-        let Message::NewDiagnostic(DiagnosticMessage { rule, parent, .. }) = message else {
+        let Message::Diagnostic(DiagnosticMessage { rule, parent, .. }) = message else {
             comments_by_line.push(None);
             continue;
         };

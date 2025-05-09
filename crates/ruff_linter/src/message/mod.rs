@@ -46,7 +46,7 @@ mod text;
 /// error message raised by the parser.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Message {
-    NewDiagnostic(DiagnosticMessage),
+    Diagnostic(DiagnosticMessage),
     SyntaxError(db::Diagnostic),
 }
 
@@ -145,7 +145,7 @@ impl Message {
         let span = Span::from(file).with_range(range);
         diagnostic.annotate(Annotation::primary(span).message(body));
 
-        Message::NewDiagnostic(DiagnosticMessage {
+        Message::Diagnostic(DiagnosticMessage {
             diagnostic,
             rule,
             fix,
@@ -221,21 +221,21 @@ impl Message {
 
     pub const fn as_diagnostic_message(&self) -> Option<&DiagnosticMessage> {
         match self {
+            Message::Diagnostic(m) => Some(m),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic(m) => Some(m),
         }
     }
 
     pub fn into_diagnostic_message(self) -> Option<DiagnosticMessage> {
         match self {
+            Message::Diagnostic(m) => Some(m),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic(m) => Some(m),
         }
     }
 
     /// Returns `true` if `self` is a diagnostic message.
     pub const fn is_diagnostic_message(&self) -> bool {
-        matches!(self, Message::NewDiagnostic { .. })
+        matches!(self, Message::Diagnostic(_))
     }
 
     /// Returns `true` if `self` is a syntax error message.
@@ -243,23 +243,22 @@ impl Message {
         match self {
             Message::Diagnostic(_) => false,
             Message::SyntaxError(diag) => diag.id().is_invalid_syntax(),
-            Message::NewDiagnostic { .. } => false,
         }
     }
 
     /// Returns a message kind.
     pub fn kind(&self) -> MessageKind {
         match self {
+            Message::Diagnostic(m) => MessageKind::Diagnostic(m.rule),
             Message::SyntaxError(_) => MessageKind::SyntaxError,
-            Message::NewDiagnostic(m) => MessageKind::Diagnostic(m.rule),
         }
     }
 
     /// Returns the name used to represent the diagnostic.
     pub fn name(&self) -> &str {
         match self {
+            Message::Diagnostic(m) => m.diagnostic.primary_message(),
             Message::SyntaxError(_) => "SyntaxError",
-            Message::NewDiagnostic(m) => m.diagnostic.primary_message(),
         }
     }
 
@@ -275,24 +274,24 @@ impl Message {
     /// Returns the fix suggestion for the violation.
     pub fn suggestion(&self) -> Option<&str> {
         match self {
+            Message::Diagnostic(m) => m.suggestion.as_deref(),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic(m) => m.suggestion.as_deref(),
         }
     }
 
     /// Returns the offset at which the `noqa` comment will be placed if it's a diagnostic message.
     pub fn noqa_offset(&self) -> Option<TextSize> {
         match self {
+            Message::Diagnostic(m) => m.noqa_offset,
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic(m) => m.noqa_offset,
         }
     }
 
     /// Returns the [`Fix`] for the message, if there is any.
     pub fn fix(&self) -> Option<&Fix> {
         match self {
+            Message::Diagnostic(m) => m.fix.as_ref(),
             Message::SyntaxError(_) => None,
-            Message::NewDiagnostic(m) => m.fix.as_ref(),
         }
     }
 
@@ -304,14 +303,14 @@ impl Message {
     /// Returns the [`Rule`] corresponding to the diagnostic message.
     pub fn rule(&self) -> Option<Rule> {
         match self {
-            Message::NewDiagnostic(m) => Some(m.rule),
+            Message::Diagnostic(m) => Some(m.rule),
             Message::SyntaxError(_) => None,
         }
     }
 
     fn diagnostic(&self) -> &db::Diagnostic {
         match self {
-            Message::NewDiagnostic(m) => &m.diagnostic,
+            Message::Diagnostic(m) => &m.diagnostic,
             Message::SyntaxError(m) => m,
         }
     }

@@ -278,7 +278,7 @@ Either ensure you always emit a fix or change `Violation::FIX_AVAILABILITY` to e
                 Some(directives.noqa_line_for.resolve(diagnostic.range().start()));
             diagnostic.set_file(source_code.clone());
 
-            Message::NewDiagnostic(diagnostic)
+            Message::Diagnostic(diagnostic)
         })
         .chain(parsed.errors().iter().map(|parse_error| {
             Message::from_parse_error(parse_error, &locator, source_code.clone())

@@ -212,7 +212,7 @@ impl Workspace {
                 let message = msg.body().to_string();
                 let range = msg.range();
                 match msg {
-                    Message::NewDiagnostic(d) => ExpandedMessage {
+                    Message::Diagnostic(d) => ExpandedMessage {
                         code: Some(d.rule.noqa_code().to_string()),
                         message,
                         start_location: source_code.line_column(range.start()).into(),
