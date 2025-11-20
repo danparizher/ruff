@@ -1034,8 +1034,11 @@ fn suspicious_function(
     }
 
     /// Return the leading characters for an expression, if it's a string literal, f-string, or
-    /// string concatenation.
-    fn leading_chars(expr: &Expr) -> Option<impl Iterator<Item = char> + Clone + '_> {
+    /// string concatenation. Recursively resolves name bindings in concatenations.
+    fn leading_chars<'a>(
+        expr: &'a Expr,
+        semantic: &'a SemanticModel,
+    ) -> Option<impl Iterator<Item = char> + Clone + 'a> {
         match expr {
             // Ex) `"foo"`
             Expr::StringLiteral(ast::ExprStringLiteral { value, .. }) => {
@@ -1054,12 +1057,16 @@ fn suspicious_function(
                     }
                 })
             }
-            // Ex) "foo" + "bar"
+            // Ex) "foo" + "bar" or name_var + "bar"
             Expr::BinOp(ast::ExprBinOp {
                 op: Operator::Add,
                 left,
                 ..
-            }) => leading_chars(left),
+            }) => {
+                // Resolve left if it's a name, then get leading chars
+                let resolved_left = resolve_name(left, semantic);
+                leading_chars(resolved_left, semantic)
+            }
             _ => None,
         }
     }
@@ -1156,19 +1163,22 @@ fn suspicious_function(
         // URLOpen (`Request`)
         ["urllib", "request", "Request"] | ["six", "moves", "urllib", "request", "Request"] => {
             if let Some(arguments) = arguments {
-                // If the `url` argument is a string literal or an f-string, allow `http` and `https` schemes.
+                // If the `url` argument is a string literal (including resolved bindings), allow `http` and `https` schemes.
                 if arguments.args.iter().all(|arg| !arg.is_starred_expr())
                     && arguments
                         .keywords
                         .iter()
                         .all(|keyword| keyword.arg.is_some())
                 {
-                    if arguments
-                        .find_argument_value("url", 0)
-                        .and_then(leading_chars)
-                        .is_some_and(has_http_prefix)
-                    {
-                        return;
+                    if let Some(expr) = arguments.find_argument_value("url", 0) {
+                        if is_s310_resolve_string_literal_bindings_enabled(checker.settings()) {
+                            let expr = resolve_name(expr, checker.semantic());
+                            if leading_chars(expr, checker.semantic()).is_some_and(has_http_prefix) {
+                                return;
+                            }
+                        } else if leading_chars(expr, checker.semantic()).is_some_and(has_http_prefix) {
+                            return;
+                        }
                     }
                 }
             }
@@ -1204,15 +1214,18 @@ fn suspicious_function(
                                 })
                             {
                                 if let Some(url_expr) = arguments.find_argument_value("url", 0) {
-                                    let url_expr =
-                                        if is_s310_resolve_string_literal_bindings_enabled(
-                                            checker.settings(),
-                                        ) {
-                                            resolve_name(url_expr, checker.semantic())
-                                        } else {
-                                            url_expr
-                                        };
-                                    if leading_chars(url_expr).is_some_and(has_http_prefix) {
+                                    if is_s310_resolve_string_literal_bindings_enabled(
+                                        checker.settings(),
+                                    ) {
+                                        let url_expr = resolve_name(url_expr, checker.semantic());
+                                        if leading_chars(url_expr, checker.semantic())
+                                            .is_some_and(has_http_prefix)
+                                        {
+                                            return;
+                                        }
+                                    } else if leading_chars(url_expr, checker.semantic())
+                                        .is_some_and(has_http_prefix)
+                                    {
                                         return;
                                     }
                                 }
@@ -1221,14 +1234,15 @@ fn suspicious_function(
 
                         // If the `url` argument is a string literal (including resolved bindings), allow `http` and `https` schemes.
                         Some(expr) => {
-                            let expr = if is_s310_resolve_string_literal_bindings_enabled(
-                                checker.settings(),
-                            ) {
-                                resolve_name(expr, checker.semantic())
-                            } else {
-                                expr
-                            };
-                            if leading_chars(expr).is_some_and(has_http_prefix) {
+                            if is_s310_resolve_string_literal_bindings_enabled(checker.settings()) {
+                                let expr = resolve_name(expr, checker.semantic());
+                                if leading_chars(expr, checker.semantic()).is_some_and(has_http_prefix)
+                                {
+                                    return;
+                                }
+                            } else if leading_chars(expr, checker.semantic())
+                                .is_some_and(has_http_prefix)
+                            {
                                 return;
                             }
                         }

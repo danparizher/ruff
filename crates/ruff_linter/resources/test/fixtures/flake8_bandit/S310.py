@@ -49,3 +49,17 @@ foo = urllib.request.urlopen
 # https://github.com/astral-sh/ruff/issues/21462
 path = "https://example.com/data.csv"
 urllib.request.urlretrieve(path, "data.csv")
+urllib.request.Request(path)
+
+# f-string literal
+filename = "data.csv"
+f_string_path = f"https://example.com/{filename}"
+urllib.request.urlretrieve(path, f_string_path)
+urllib.request.Request(f_string_path)
+
+# concatenated string literal
+base_url = "https://example.com"
+filename = "data.csv"
+concatenated_path = base_url + "/" + filename
+urllib.request.urlretrieve(concatenated_path, filename)
+urllib.request.Request(concatenated_path)

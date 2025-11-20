@@ -262,4 +262,56 @@ S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom sch
 50 | path = "https://example.com/data.csv"
 51 | urllib.request.urlretrieve(path, "data.csv")
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+52 | urllib.request.Request(path)
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> S310.py:52:1
+   |
+50 | path = "https://example.com/data.csv"
+51 | urllib.request.urlretrieve(path, "data.csv")
+52 | urllib.request.Request(path)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+53 |
+54 | # f-string literal
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> S310.py:57:1
+   |
+55 | filename = "data.csv"
+56 | f_string_path = f"https://example.com/{filename}"
+57 | urllib.request.urlretrieve(path, f_string_path)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+58 | urllib.request.Request(f_string_path)
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> S310.py:58:1
+   |
+56 | f_string_path = f"https://example.com/{filename}"
+57 | urllib.request.urlretrieve(path, f_string_path)
+58 | urllib.request.Request(f_string_path)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+59 |
+60 | # concatenated string literal
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> S310.py:64:1
+   |
+62 | filename = "data.csv"
+63 | concatenated_path = base_url + "/" + filename
+64 | urllib.request.urlretrieve(concatenated_path, filename)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+65 | urllib.request.Request(concatenated_path)
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> S310.py:65:1
+   |
+63 | concatenated_path = base_url + "/" + filename
+64 | urllib.request.urlretrieve(concatenated_path, filename)
+65 | urllib.request.Request(concatenated_path)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
