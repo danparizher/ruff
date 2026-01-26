@@ -1684,9 +1684,9 @@ impl Flake8ImportConventionsOptions {
             normalized_aliases.insert(module, normalized_alias);
         }
 
-        let banned_aliases = self
-            .banned_aliases
-            .unwrap_or_else(|| flake8_import_conventions::settings::default_banned_aliases(preview));
+        let banned_aliases = self.banned_aliases.unwrap_or_else(|| {
+            flake8_import_conventions::settings::default_banned_aliases(preview)
+        });
 
         Ok(flake8_import_conventions::settings::Settings {
             aliases: normalized_aliases,
