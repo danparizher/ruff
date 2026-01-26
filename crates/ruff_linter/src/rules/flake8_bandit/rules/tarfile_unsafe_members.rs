@@ -75,29 +75,29 @@ pub(crate) fn tarfile_unsafe_members(checker: &Checker, call: &ast::ExprCall) {
         if let Some(binding_id) = checker.semantic().resolve_name(name) {
             let binding = checker.semantic().binding(binding_id);
             if matches!(binding.kind, BindingKind::WithItemVar) {
-                if let Some(stmt) = binding.statement(checker.semantic()) {
-                    if let Stmt::With(ast::StmtWith { items, .. }) = stmt {
-                        if let Some(item) = items.iter().find(|item| {
-                            item.optional_vars
-                                .as_ref()
-                                .is_some_and(|vars| vars.as_name_expr().is_some_and(|n| n.id == name.id))
-                        }) {
-                            if is_zipfile(&item.context_expr, checker.semantic()) {
-                                return;
-                            }
+                if let Some(Stmt::With(ast::StmtWith { items, .. })) =
+                    binding.statement(checker.semantic())
+                {
+                    if let Some(item) = items.iter().find(|item| {
+                        item.optional_vars.as_ref().is_some_and(|vars| {
+                            vars.as_name_expr().is_some_and(|n| n.id == name.id)
+                        })
+                    }) {
+                        if is_zipfile(&item.context_expr, checker.semantic()) {
+                            return;
                         }
                     }
                 }
             } else if matches!(binding.kind, BindingKind::Assignment) {
-                if let Some(stmt) = binding.statement(checker.semantic()) {
-                    if let Stmt::Assign(ast::StmtAssign { value, .. })
+                if let Some(
+                    Stmt::Assign(ast::StmtAssign { value, .. })
                     | Stmt::AnnAssign(ast::StmtAnnAssign {
                         value: Some(value), ..
-                    }) = stmt
-                    {
-                        if is_zipfile(value, checker.semantic()) {
-                            return;
-                        }
+                    }),
+                ) = binding.statement(checker.semantic())
+                {
+                    if is_zipfile(value, checker.semantic()) {
+                        return;
                     }
                 }
             }
