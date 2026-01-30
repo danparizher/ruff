@@ -220,7 +220,7 @@ impl<'a> DependencyCall<'a> {
         // If the default argument was passed as a keyword, we expect 0 positional args.
         // If the default argument was passed as a positional, we expect 1 positional arg (the default).
         let has_default_keyword = call.arguments.find_keyword("default").is_some();
-        let expected_positional_args = if has_default_keyword { 0 } else { 1 };
+        let expected_positional_args = usize::from(!has_default_keyword);
         if call.arguments.args.len() > expected_positional_args {
             return None;
         }
