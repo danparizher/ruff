@@ -200,7 +200,31 @@ struct DependencyCall<'a> {
 impl<'a> DependencyCall<'a> {
     fn from_expression(expr: &'a ast::Expr) -> Option<Self> {
         let call = expr.as_call_expr()?;
+
+        // If there are any double-star arguments (**kwargs), we can't emit a fix, because we would
+        // drop them from the `Query(...)` call.
+        if call.arguments.keywords.iter().any(|kw| kw.arg.is_none()) {
+            return None;
+        }
+
         let default_argument = call.arguments.find_argument("default", 0)?;
+
+        // If the default argument is a starred expression (*args), we can't emit a fix, because
+        // we would move it to the default value position (e.g., `x: Annotated[int, Query()] = *args`),
+        // which is a syntax error.
+        if default_argument.is_variadic() {
+            return None;
+        }
+
+        // If there are extra positional arguments, we can't emit a fix, because we would drop them.
+        // If the default argument was passed as a keyword, we expect 0 positional args.
+        // If the default argument was passed as a positional, we expect 1 positional arg (the default).
+        let has_default_keyword = call.arguments.find_keyword("default").is_some();
+        let expected_positional_args = if has_default_keyword { 0 } else { 1 };
+        if call.arguments.args.len() > expected_positional_args {
+            return None;
+        }
+
         let keyword_arguments = call
             .arguments
             .keywords

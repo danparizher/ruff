@@ -1,0 +1,64 @@
+---
+source: crates/ruff_linter/src/rules/fastapi/mod.rs
+---
+FAST002 [*] FastAPI dependency without `Annotated`
+  --> FAST002_3.py:11:5
+   |
+ 9 | @app.get("/f1")
+10 | def f1(
+11 |     x: int = Query(*[1])
+   |     ^^^^^^^^^^^^^^^^^^^^
+12 | ):
+13 |     pass
+   |
+help: Replace with `typing.Annotated`
+8  | # NOT: x: Annotated[int, Query()] = *[1] (Syntax Error)
+9  | @app.get("/f1")
+10 | def f1(
+   -     x: int = Query(*[1])
+11 +     x: Annotated[int, Query(*[1])]
+12 | ):
+13 |     pass
+14 |
+note: This is an unsafe fix and may change runtime behavior
+
+FAST002 [*] FastAPI dependency without `Annotated`
+  --> FAST002_3.py:21:5
+   |
+19 | @app.get("/f2")
+20 | def f2(
+21 |     x: int = Query(1, **{"a": 1})
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+22 | ):
+23 |     pass
+   |
+help: Replace with `typing.Annotated`
+18 | # With fix: fallback to Annotated[int, Query(1, **{"a": 1})] ?
+19 | @app.get("/f2")
+20 | def f2(
+   -     x: int = Query(1, **{"a": 1})
+21 +     x: Annotated[int, Query(1, **{"a": 1})]
+22 | ):
+23 |     pass
+24 |
+note: This is an unsafe fix and may change runtime behavior
+
+FAST002 [*] FastAPI dependency without `Annotated`
+  --> FAST002_3.py:29:5
+   |
+27 | @app.get("/f3")
+28 | def f3(
+29 |     x: int = Query(1, 2)
+   |     ^^^^^^^^^^^^^^^^^^^^
+30 | ):
+31 |     pass
+   |
+help: Replace with `typing.Annotated`
+26 | # Should become fallback.
+27 | @app.get("/f3")
+28 | def f3(
+   -     x: int = Query(1, 2)
+29 +     x: Annotated[int, Query(1, 2)]
+30 | ):
+31 |     pass
+note: This is an unsafe fix and may change runtime behavior
